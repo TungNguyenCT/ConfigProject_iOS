@@ -1,0 +1,33 @@
+before_install:
+    - gem update --system
+    - gem install bundler
+    - bundle install
+    - bundle exec pod install --repo-update
+cache:
+  - bundler
+  - cocoapods
+language: objective-c
+osx_image: xcode10
+xcode_project: ConfigProject.xcworkspace
+xcode_scheme: Dev
+xcode_destination: platform=iOS Simulator,OS=12.0,name=iPhone X
+before_script:
+  - chmod +x ./scripts/add-key.sh
+  - sh ./scripts/add-key.sh
+script:
+    - ./scripts/lint
+    - if [[ "$TRAVIS_BRANCH" == "develop" && "$TRAVIS_PULL_REQUEST" == "false" ]]; then bundle exec fastlane deploy_dev; fi
+    - if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PULL_REQUEST" == "false" ]]; then bundle exec fastlane deploy_stg; fi
+    - if [[ "$TRAVIS_BRANCH" =~ "release"* && "$TRAVIS_PULL_REQUEST" == "false" ]]; then bundle exec fastlane deploy_product; fi
+    - xcodebuild clean build -sdk iphonesimulator -workspace ConfigProject.xcworkspace -scheme Dev
+install:
+    - sudo systemsetup -settimezone Asia/Ho_Chi_Minh
+deploy:
+  provider: releases
+  api_key: $GITHUB_ACCESS_TOKEN
+  file: ./ConfigProject.ipa
+  skip_cleanup: true
+  draft: true
+  on:
+    all_branches: true
+    condition: $TRAVIS_BRANCH = "release"*

@@ -1,0 +1,132 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+
+  desc "test build stg"
+  lane :deploy_stg do
+    config_cer_provision(
+      certificate_path: "./Cers/dis.p12",
+      profile: "./Cers/TheLastProject_AdHoc.mobileprovision",
+      build_configuration: "Staging"
+    )
+
+    build_app_with(
+      scheme: "Staging", 
+      configuration: "Staging",
+      bundle: "com.fx.thelastproject",
+      provisioning: "TheLastProject_AdHoc",
+      export_method: "ad-hoc"
+    )
+    create_release_notes(format: 'STG: %h %s')
+
+    # upload to Beta by Crashlytics
+    upload_fabric(groups: "pms")
+  end
+
+  desc "test build dev"
+  lane :deploy_dev do
+    config_cer_provision(
+      certificate_path: "./Cers/dev.p12",
+      profile: "./Cers/TheLastProject_Dev.mobileprovision",
+      build_configuration: "Dev"
+    )
+
+    build_app_with(
+      scheme: "Dev", 
+      configuration: "Dev",
+      bundle: "com.fx.thelastproject",
+      provisioning: "TheLastProject_Dev",
+      export_method: "development"
+    )
+
+    create_release_notes(format: 'DEV: %h %s')
+
+    # upload to Beta by Crashlytics
+    upload_fabric(groups: "qcs")
+  end
+
+  desc "test build Product"
+  lane :deploy_product do
+    config_cer_provision(
+      certificate_path: "./Cers/dis.p12",
+      profile: "./Cers/TheLastProject_AdHoc.mobileprovision",
+      build_configuration: "Product"
+    )
+
+    build_app_with(
+      scheme: "Product", 
+      configuration: "Product",
+      bundle: "com.fx.thelastproject",
+      provisioning: "TheLastProject_AdHoc",
+      export_method: "ad-hoc"
+    )
+  end
+
+  desc "Build app with options"
+  private_lane :build_app_with do |options|
+    build_app(
+      scheme: "#{options[:scheme]}",
+      configuration: "#{options[:configuration]}",
+      silent: true,
+      clean: true,
+      output_name: "ConfigProject.ipa",
+      skip_profile_detection: true,
+      export_method: "#{options[:export_method]}",
+      export_options: {
+        provisioningProfiles: { "#{options[:bundle]}": "#{options[:provisioning]}" }
+      }
+    )
+  end
+
+  desc "Upload to Fabric with options"
+  private_lane :upload_fabric do |options|
+    crashlytics(
+      api_token: ENV["FABRIC_API_TOKEN"],
+      build_secret: ENV["FABRIC_BUILD_SECRET"],
+      notes_path: "./fastlane/release_notes.txt",
+      groups: ["#{options[:groups]}"]
+    )
+  end
+
+  desc "Import certificate"
+  private_lane :config_cer_provision do |options|
+    import_certificate(
+      keychain_name: "ios-build.keychain",
+      keychain_password: "travis",
+      certificate_path: "#{options[:certificate_path]}",
+      certificate_password: ENV["CERTIFICATE_PASSWORD"]
+    )
+    
+    update_project_provisioning(
+      xcodeproj: "ConfigProject.xcodeproj",
+      profile: "#{options[:profile]}",
+      target_filter: "ConfigProject",
+      build_configuration: "#{options[:build_configuration]}"
+    )
+
+    update_project_team(
+      path: "ConfigProject.xcodeproj",
+      teamid: ENV["TEAM_ID"]
+    )
+  end
+
+  desc "Create release notes"
+  private_lane :create_release_notes do |options|
+    sh "git log -1 --pretty=tformat:\"#{options[:format]}\" > release_notes.txt"
+  end
+end

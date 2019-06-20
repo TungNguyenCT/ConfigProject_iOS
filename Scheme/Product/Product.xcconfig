@@ -1,0 +1,13 @@
+//
+//  Product.xcconfig
+//  ConfigProject
+//
+//  Created by MBA0239P on 3/18/19.
+//  Copyright © 2019 Tung Nguyen C.T. All rights reserved.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://help.apple.com/xcode/#/dev745c5c974
+
+DISPLAY_NAME = ConfigProj
+PRODUCT_BUNDLE_IDENTIFIER = com.fx.thelastproject
